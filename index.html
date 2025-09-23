@@ -14,14 +14,14 @@
         </header>
 
         <main>
-            <div class="upload-section">
+            <div class="upload-section" id="uploadSection">
                 <div class="upload-area" id="uploadArea">
                     <input type="file" id="pdfInput" accept=".pdf" hidden>
                     <div class="upload-content">
                         <div class="upload-icon">📄</div>
                         <h3>Upload PDF Map</h3>
                         <p>Click or drag and drop your PDF file here</p>
-                        <button class="upload-btn" onclick="document.getElementById('pdfInput').click()">
+                        <button class="upload-btn" id="uploadBtn">
                             Choose File
                         </button>
                     </div>
@@ -29,30 +29,38 @@
             </div>
 
             <div class="map-workspace" id="mapWorkspace" style="display: none;">
-                <div class="controls-panel">
+                <!-- Collapsible Menu Button -->
+                <div class="menu-toggle" id="menuToggle">
+                    <button class="menu-btn">
+                        <span class="menu-icon">☰</span>
+                        Controls
+                    </button>
+                </div>
+
+                <!-- Collapsible Controls Panel -->
+                <div class="controls-panel" id="controlsPanel">
                     <div class="control-group">
+                        <p>Use mouse wheel to zoom and click-drag to pan.</p>
                         <h4>Transform Controls</h4>
                         <div class="control-row">
                             <label>Rotation:</label>
-                            <input type="range" id="rotationSlider" min="0" max="360" value="0">
+                            <input type="range" id="rotationSlider" min="0" max="360" value="0" step="1">
                             <span id="rotationValue">0°</span>
                         </div>
                         <div class="control-row">
                             <label>Scale:</label>
-                            <input type="range" id="scaleSlider" min="0.1" max="3" value="1" step="0.1">
+                            <input type="range" id="scaleSlider" min="0.1" max="5" value="1" step="0.05">
                             <span id="scaleValue">100%</span>
                         </div>
                         <div class="control-buttons">
-                            <button id="resetBtn">Reset</button>
-                            <button id="exportBtn">Export</button>
+                            <button id="resetBtn">Reset View</button>
+                            <button id="exportBtn">Export PNG</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="map-container">
-                    <div class="map-canvas-wrapper">
-                        <canvas id="mapCanvas"></canvas>
-                    </div>
+                <div class="map-container" id="mapContainer">
+                    <canvas id="mapCanvas"></canvas>
                 </div>
             </div>
         </main>
@@ -62,3 +70,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
