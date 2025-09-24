@@ -71,12 +71,13 @@
                     </div>
 
                     <div class="editing-section">
-                        <h4>Removable Smears</h4>
+                        <h4>Removable Smears
+                            <span class="icon-buttons">
+                                <button id="addSmearBtn" class="icon-btn add-icon" title="Add Smear">+</button>
+                                <button id="removeSmearBtn" class="icon-btn remove-icon" title="Remove Smear">−</button>
+                            </span>
+                        </h4>
                         <div class="tool-controls">
-                            <div class="button-group">
-                                <button id="addSmearBtn" class="tool-btn add-btn">Add Smear</button>
-                                <button id="removeSmearBtn" class="tool-btn remove-btn">Remove Smear</button>
-                            </div>
                             <div class="smear-info">
                                 <span>Next ID: <span id="nextSmearId">1</span></span>
                             </div>
@@ -84,12 +85,13 @@
                     </div>
 
                     <div class="editing-section">
-                        <h4>Dose Rates</h4>
+                        <h4>Dose Rates
+                            <span class="icon-buttons">
+                                <button id="addDoseBtn" class="icon-btn add-icon" title="Add Dose Rate">+</button>
+                                <button id="removeDoseBtn" class="icon-btn remove-icon" title="Remove Dose Rate">−</button>
+                            </span>
+                        </h4>
                         <div class="tool-controls">
-                            <div class="button-group">
-                                <button id="addDoseBtn" class="tool-btn add-btn">Add Dose Rate</button>
-                                <button id="removeDoseBtn" class="tool-btn remove-btn">Remove Dose Rate</button>
-                            </div>
                             <div id="doseControls" class="dose-controls" style="display: none;">
                                 <div class="dose-input-row">
                                     <input type="number" id="doseValue" placeholder="100" class="dose-input" step="0.1" min="0">
