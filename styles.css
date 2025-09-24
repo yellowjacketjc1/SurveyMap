@@ -246,6 +246,138 @@ main {
     overflow: hidden; /* This will contain the canvas */
 }
 
+.editing-panel {
+    width: 280px;
+    background: white;
+    border-left: 1px solid #e9ecef;
+    padding: 20px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.editing-header {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.editing-header h3 {
+    color: #2c3e50;
+    font-size: 1.3em;
+    margin: 0;
+}
+
+.editing-section {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.editing-section h4 {
+    color: #2c3e50;
+    font-size: 1.1em;
+    margin: 0 0 15px 0;
+}
+
+.tool-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tool-select, .dose-input {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.95em;
+    color: #495057;
+}
+
+.tool-select:focus, .dose-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.smear-info {
+    padding: 8px 12px;
+    background: #e3f2fd;
+    border-radius: 6px;
+    font-size: 0.9em;
+    color: #1976d2;
+    font-weight: 600;
+}
+
+.clear-btn {
+    padding: 10px 15px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.clear-btn:hover {
+    background: #c0392b;
+}
+
+.button-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.tool-btn {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.add-btn {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.add-btn:hover {
+    background: #218838;
+    border-color: #218838;
+}
+
+.add-btn.active {
+    background: #155724;
+    border-color: #155724;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+}
+
+.remove-btn {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+}
+
+.remove-btn:hover {
+    background: #c0392b;
+    border-color: #c0392b;
+}
+
+.remove-btn.active {
+    background: #a93226;
+    border-color: #a93226;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.3);
+}
+
 #mapCanvas {
     display: block;
     background-color: #f8f9fa;

@@ -62,6 +62,58 @@
                 <div class="map-container" id="mapContainer">
                     <canvas id="mapCanvas"></canvas>
                 </div>
+
+                <!-- Editing Panel -->
+                <div class="editing-panel" id="editingPanel">
+                    <div class="editing-header">
+                        <h3>Editing Tools</h3>
+                    </div>
+
+                    <div class="editing-section">
+                        <h4>Removable Smears</h4>
+                        <div class="tool-controls">
+                            <div class="button-group">
+                                <button id="addSmearBtn" class="tool-btn add-btn">Add Smear</button>
+                                <button id="removeSmearBtn" class="tool-btn remove-btn">Remove Smear</button>
+                            </div>
+                            <div class="smear-info">
+                                <span>Next ID: <span id="nextSmearId">1</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editing-section">
+                        <h4>Dose Rates</h4>
+                        <div class="tool-controls">
+                            <select id="doseAction" class="tool-select">
+                                <option value="">Select Action</option>
+                                <option value="add">Add Dose Rate</option>
+                                <option value="remove">Remove Dose Rate</option>
+                            </select>
+                            <input type="number" id="doseValue" placeholder="μR/hr" class="dose-input" style="display: none;">
+                        </div>
+                    </div>
+
+                    <div class="editing-section">
+                        <h4>Equipment Library</h4>
+                        <div class="tool-controls">
+                            <select id="equipmentAction" class="tool-select">
+                                <option value="">Select Equipment</option>
+                                <option value="detector">Detector</option>
+                                <option value="source">Source</option>
+                                <option value="barrier">Barrier</option>
+                                <option value="instrument">Instrument</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="editing-section">
+                        <h4>Clear All</h4>
+                        <div class="tool-controls">
+                            <button id="clearAllBtn" class="clear-btn">Clear All Annotations</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

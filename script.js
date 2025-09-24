@@ -23,6 +23,20 @@ class SurveyMapApp {
         this.lastX = 0;
         this.lastY = 0;
 
+        // Editing state
+        this.annotations = {
+            smears: [],
+            doseRates: [],
+            equipment: []
+        };
+        this.nextSmearId = 1;
+        this.currentTool = null;
+
+        // Dragging state
+        this.isDraggingSmear = false;
+        this.draggedSmear = null;
+        this.dragOffset = { x: 0, y: 0 };
+
         this.initializeEventListeners();
         this.setupPdfJs();
     }
@@ -92,14 +106,31 @@ class SurveyMapApp {
         });
 
         // Canvas interactions
-        this.canvas.addEventListener('mousedown', (e) => this.startPan(e));
-        this.canvas.addEventListener('mousemove', (e) => this.pan(e));
-        this.canvas.addEventListener('mouseup', () => this.endPan());
-        this.canvas.addEventListener('mouseleave', () => this.endPan());
+        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.canvas.addEventListener('wheel', (e) => this.handleZoom(e));
 
         // Responsive canvas
         window.addEventListener('resize', () => this.resetView());
+
+        // Editing tools
+        const addSmearBtn = document.getElementById('addSmearBtn');
+        const removeSmearBtn = document.getElementById('removeSmearBtn');
+        const doseAction = document.getElementById('doseAction');
+        const doseValue = document.getElementById('doseValue');
+        const equipmentAction = document.getElementById('equipmentAction');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+
+        addSmearBtn.addEventListener('click', () => this.toggleSmearTool('add'));
+        removeSmearBtn.addEventListener('click', () => this.toggleSmearTool('remove'));
+        doseAction.addEventListener('change', (e) => {
+            this.setTool('dose', e.target.value);
+            doseValue.style.display = e.target.value === 'add' ? 'block' : 'none';
+        });
+        equipmentAction.addEventListener('change', (e) => this.setTool('equipment', e.target.value));
+        clearAllBtn.addEventListener('click', () => this.clearAllAnnotations());
     }
 
     handleFileSelect(event) {
@@ -183,8 +214,11 @@ class SurveyMapApp {
 
         this.ctx.scale(this.scale, this.scale);
         this.ctx.drawImage(this.pageCanvas, 0, 0);
-        
+
         this.ctx.restore();
+
+        // Draw annotations
+        this.drawAnnotations();
     }
     
     startPan(e) {
@@ -246,6 +280,335 @@ class SurveyMapApp {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    // Editing Methods
+    toggleSmearTool(action) {
+        // Toggle the tool - if it's already active, deactivate it
+        if (this.currentTool && this.currentTool.type === 'smear' && this.currentTool.action === action) {
+            this.currentTool = null;
+        } else {
+            this.currentTool = { type: 'smear', action };
+        }
+
+        this.updateButtonStates();
+        this.updateCursor();
+    }
+
+    updateButtonStates() {
+        const addBtn = document.getElementById('addSmearBtn');
+        const removeBtn = document.getElementById('removeSmearBtn');
+
+        // Reset all button states
+        addBtn.classList.remove('active');
+        removeBtn.classList.remove('active');
+
+        // Set active state for current tool
+        if (this.currentTool && this.currentTool.type === 'smear') {
+            if (this.currentTool.action === 'add') {
+                addBtn.classList.add('active');
+            } else if (this.currentTool.action === 'remove') {
+                removeBtn.classList.add('active');
+            }
+        }
+    }
+
+    updateCursor() {
+        if (this.isDraggingSmear) {
+            this.canvas.style.cursor = 'grabbing';
+        } else if (this.currentTool) {
+            if (this.currentTool.action === 'add') {
+                this.canvas.style.cursor = 'crosshair';
+            } else if (this.currentTool.action === 'remove') {
+                this.canvas.style.cursor = 'pointer';
+            }
+        } else {
+            this.canvas.style.cursor = 'grab';
+        }
+    }
+
+    setTool(type, action) {
+        this.currentTool = action ? { type, action } : null;
+        this.updateCursor();
+    }
+
+    handleMouseDown(e) {
+        if (this.currentTool && this.currentTool.action === 'add') {
+            this.addAnnotation(e);
+        } else if (this.currentTool && this.currentTool.action === 'remove' && this.currentTool.type === 'smear') {
+            this.removeSmear(e);
+        } else {
+            // Check if clicking on a smear for dragging (when no tool is active)
+            if (!this.currentTool) {
+                const smear = this.getSmearAtPosition(e);
+                if (smear) {
+                    this.startSmearDrag(e, smear);
+                    return;
+                }
+            }
+            this.startPan(e);
+        }
+    }
+
+    handleMouseMove(e) {
+        if (this.isDraggingSmear) {
+            this.dragSmear(e);
+        } else {
+            this.pan(e);
+        }
+    }
+
+    handleMouseUp(e) {
+        if (this.isDraggingSmear) {
+            this.endSmearDrag();
+        } else {
+            this.endPan();
+        }
+    }
+
+    handleMouseLeave() {
+        if (this.isDraggingSmear) {
+            this.endSmearDrag();
+        } else {
+            this.endPan();
+        }
+    }
+
+    addAnnotation(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Convert canvas coordinates to page coordinates
+        const pageX = (canvasX - this.offsetX) / this.scale;
+        const pageY = (canvasY - this.offsetY) / this.scale;
+
+        if (this.currentTool.type === 'smear') {
+            this.annotations.smears.push({
+                id: this.nextSmearId++,
+                x: pageX,
+                y: pageY
+            });
+            document.getElementById('nextSmearId').textContent = this.nextSmearId;
+        } else if (this.currentTool.type === 'dose') {
+            const doseValue = document.getElementById('doseValue').value;
+            if (doseValue) {
+                this.annotations.doseRates.push({
+                    x: pageX,
+                    y: pageY,
+                    value: parseFloat(doseValue)
+                });
+            }
+        } else if (this.currentTool.type === 'equipment') {
+            const equipmentType = document.getElementById('equipmentAction').value;
+            this.annotations.equipment.push({
+                x: pageX,
+                y: pageY,
+                type: equipmentType
+            });
+        }
+
+        this.redraw();
+    }
+
+    drawAnnotations() {
+        this.ctx.save();
+        this.ctx.translate(this.offsetX, this.offsetY);
+        this.ctx.scale(this.scale, this.scale);
+
+        // Draw smears
+        this.annotations.smears.forEach(smear => {
+            const isBeingDragged = this.isDraggingSmear && this.draggedSmear && this.draggedSmear.smear === smear;
+
+            this.ctx.beginPath();
+            this.ctx.arc(smear.x, smear.y, 15, 0, 2 * Math.PI);
+
+            if (isBeingDragged) {
+                // Highlight the dragged smear
+                this.ctx.fillStyle = 'rgba(255, 152, 0, 0.8)';
+                this.ctx.strokeStyle = '#ff9800';
+                this.ctx.lineWidth = 3;
+            } else {
+                this.ctx.fillStyle = 'rgba(255, 193, 7, 0.6)';
+                this.ctx.strokeStyle = '#ffc107';
+                this.ctx.lineWidth = 2;
+            }
+
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Draw ID number
+            this.ctx.fillStyle = '#000';
+            this.ctx.font = 'bold 12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(smear.id.toString(), smear.x, smear.y + 4);
+        });
+
+        // Draw dose rates
+        this.annotations.doseRates.forEach(dose => {
+            this.ctx.beginPath();
+            this.ctx.arc(dose.x, dose.y, 8, 0, 2 * Math.PI);
+            this.ctx.fillStyle = 'rgba(220, 53, 69, 0.8)';
+            this.ctx.fill();
+
+            // Draw dose value
+            this.ctx.fillStyle = '#000';
+            this.ctx.font = 'bold 10px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`${dose.value}μR/hr`, dose.x, dose.y - 15);
+        });
+
+        // Draw equipment
+        this.annotations.equipment.forEach(equipment => {
+            this.ctx.beginPath();
+            this.ctx.rect(equipment.x - 10, equipment.y - 10, 20, 20);
+            this.ctx.fillStyle = 'rgba(40, 167, 69, 0.8)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = '#28a745';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+
+            // Draw equipment type
+            this.ctx.fillStyle = '#000';
+            this.ctx.font = 'bold 8px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(equipment.type.charAt(0).toUpperCase(), equipment.x, equipment.y + 3);
+        });
+
+        this.ctx.restore();
+    }
+
+    removeSmear(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Convert canvas coordinates to page coordinates
+        const pageX = (canvasX - this.offsetX) / this.scale;
+        const pageY = (canvasY - this.offsetY) / this.scale;
+
+        // Find the closest smear within clicking distance
+        let closestSmear = null;
+        let closestDistance = Infinity;
+        const clickThreshold = 20; // pixels in page coordinates
+
+        this.annotations.smears.forEach((smear, index) => {
+            const distance = Math.sqrt(Math.pow(smear.x - pageX, 2) + Math.pow(smear.y - pageY, 2));
+            if (distance < clickThreshold && distance < closestDistance) {
+                closestDistance = distance;
+                closestSmear = { smear, index };
+            }
+        });
+
+        if (closestSmear) {
+            // Remove the smear
+            this.annotations.smears.splice(closestSmear.index, 1);
+
+            // Renumber all remaining smears
+            this.renumberSmears();
+
+            this.redraw();
+        }
+    }
+
+    getSmearAtPosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Convert canvas coordinates to page coordinates
+        const pageX = (canvasX - this.offsetX) / this.scale;
+        const pageY = (canvasY - this.offsetY) / this.scale;
+
+        // Find the closest smear within clicking distance
+        let closestSmear = null;
+        let closestDistance = Infinity;
+        const clickThreshold = 20; // pixels in page coordinates
+
+        this.annotations.smears.forEach((smear, index) => {
+            const distance = Math.sqrt(Math.pow(smear.x - pageX, 2) + Math.pow(smear.y - pageY, 2));
+            if (distance < clickThreshold && distance < closestDistance) {
+                closestDistance = distance;
+                closestSmear = { smear, index };
+            }
+        });
+
+        return closestSmear;
+    }
+
+    startSmearDrag(e, smearData) {
+        this.isDraggingSmear = true;
+        this.draggedSmear = smearData;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Calculate offset from mouse to smear center
+        const smearCanvasX = this.offsetX + (smearData.smear.x * this.scale);
+        const smearCanvasY = this.offsetY + (smearData.smear.y * this.scale);
+
+        this.dragOffset = {
+            x: canvasX - smearCanvasX,
+            y: canvasY - smearCanvasY
+        };
+
+        this.canvas.style.cursor = 'grabbing';
+        e.preventDefault();
+    }
+
+    dragSmear(e) {
+        if (!this.isDraggingSmear || !this.draggedSmear) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Convert to page coordinates, accounting for drag offset
+        const pageX = (canvasX - this.offsetX - this.dragOffset.x) / this.scale;
+        const pageY = (canvasY - this.offsetY - this.dragOffset.y) / this.scale;
+
+        // Update smear position
+        this.draggedSmear.smear.x = pageX;
+        this.draggedSmear.smear.y = pageY;
+
+        this.redraw();
+    }
+
+    endSmearDrag() {
+        this.isDraggingSmear = false;
+        this.draggedSmear = null;
+        this.dragOffset = { x: 0, y: 0 };
+        this.canvas.style.cursor = 'grab';
+    }
+
+    renumberSmears() {
+        // Sort smears by their current ID to maintain consistent renumbering
+        this.annotations.smears.sort((a, b) => a.id - b.id);
+
+        // Reassign IDs starting from 1
+        this.annotations.smears.forEach((smear, index) => {
+            smear.id = index + 1;
+        });
+
+        // Update the next ID counter
+        this.nextSmearId = this.annotations.smears.length + 1;
+        document.getElementById('nextSmearId').textContent = this.nextSmearId;
+    }
+
+    clearAllAnnotations() {
+        this.annotations.smears = [];
+        this.annotations.doseRates = [];
+        this.annotations.equipment = [];
+        this.nextSmearId = 1;
+        document.getElementById('nextSmearId').textContent = this.nextSmearId;
+        this.redraw();
+    }
+
+    startPan(e) {
+        this.isDragging = true;
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
     }
 }
 
