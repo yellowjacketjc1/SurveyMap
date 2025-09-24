@@ -65,6 +65,7 @@
 
                 <!-- Editing Panel -->
                 <div class="editing-panel" id="editingPanel">
+                    <div class="resize-handle" id="resizeHandle"></div>
                     <div class="editing-header">
                         <h3>Editing Tools</h3>
                     </div>
@@ -117,6 +118,19 @@
                         <div class="tool-controls">
                             <div class="button-group">
                                 <button id="deleteEquipmentBtn" class="tool-btn remove-btn">Delete Equipment</button>
+                            </div>
+                            <div class="search-controls">
+                                <input type="text" id="iconSearch" placeholder="Search icons..." class="search-input">
+                                <select id="categoryFilter" class="category-filter">
+                                    <option value="">All Categories</option>
+                                    <option value="caution">Caution Signs</option>
+                                    <option value="danger">Danger Signs</option>
+                                    <option value="radiation">Radiation Areas</option>
+                                    <option value="contamination">Contamination Areas</option>
+                                    <option value="restricted">Restricted Areas</option>
+                                    <option value="equipment">Equipment</option>
+                                    <option value="other">Other</option>
+                                </select>
                             </div>
                             <div class="equipment-gallery">
                                 <div id="equipmentList" class="equipment-list">

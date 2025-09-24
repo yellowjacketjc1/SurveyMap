@@ -51,6 +51,7 @@ class SurveyMapApp {
 
         // Loaded icons
         this.loadedIcons = new Map();
+        this.allIcons = []; // Store all icon data for searching/filtering
 
         this.initializeEventListeners();
         this.setupPdfJs();
@@ -145,6 +146,57 @@ class SurveyMapApp {
         removeDoseBtn.addEventListener('click', () => this.toggleDoseTool('remove'));
         deleteEquipmentBtn.addEventListener('click', () => this.toggleEquipmentDeleteTool());
         clearAllBtn.addEventListener('click', () => this.clearAllAnnotations());
+
+        // Search and filter controls
+        const iconSearch = document.getElementById('iconSearch');
+        const categoryFilter = document.getElementById('categoryFilter');
+        iconSearch.addEventListener('input', () => this.filterIcons());
+        categoryFilter.addEventListener('change', () => this.filterIcons());
+
+        // Panel resize functionality
+        this.setupPanelResize();
+    }
+
+    setupPanelResize() {
+        const resizeHandle = document.getElementById('resizeHandle');
+        const editingPanel = document.getElementById('editingPanel');
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = parseInt(document.defaultView.getComputedStyle(editingPanel).width, 10);
+            resizeHandle.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            // Calculate new width (dragging left increases width)
+            const deltaX = startX - e.clientX;
+            const newWidth = startWidth + deltaX;
+
+            // Apply constraints
+            const minWidth = 250;
+            const maxWidth = window.innerWidth * 0.5;
+            const constrainedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+            editingPanel.style.width = constrainedWidth + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizeHandle.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
     }
 
     handleFileSelect(event) {
@@ -444,7 +496,7 @@ class SurveyMapApp {
         }
     }
 
-    handleMouseUp(e) {
+    handleMouseUp() {
         if (this.isDraggingSmear) {
             this.endSmearDrag();
         } else if (this.isResizing) {
@@ -850,28 +902,16 @@ class SurveyMapApp {
             return;
         }
 
-        // Clear any existing content and add debug info
+        // Clear any existing content
         equipmentList.innerHTML = '';
 
-        // Add a debug status item
-        const debugItem = document.createElement('div');
-        debugItem.style.padding = '10px';
-        debugItem.style.background = '#e3f2fd';
-        debugItem.style.border = '1px solid #2196f3';
-        debugItem.style.borderRadius = '4px';
-        debugItem.style.marginBottom = '10px';
-        debugItem.innerHTML = '<strong>Loading Icons...</strong><br><span id="debug-status">Starting...</span>';
-        equipmentList.appendChild(debugItem);
-
-        const debugStatus = document.getElementById('debug-status');
-
         // First, load embedded icons (always work)
-        debugStatus.textContent = 'Loading embedded icons...';
         Object.entries(embeddedIcons).forEach(([iconFile, svgText]) => {
             this.loadedIcons.set(iconFile, svgText);
-            this.createEquipmentItem(iconFile, svgText);
+            const iconData = this.analyzeIcon(iconFile, svgText);
+            this.allIcons.push(iconData);
+            this.createEquipmentItem(iconData);
         });
-        debugStatus.textContent = `Loaded ${Object.keys(embeddedIcons).length} embedded icons`;
 
         // Try to load posting signs from Icons/Postings folder (requires server)
         const postingFiles = [];
@@ -880,7 +920,6 @@ class SurveyMapApp {
         }
 
         let loadedFromFiles = 0;
-        debugStatus.textContent = 'Loading posting files...';
 
         for (const postingFile of postingFiles) {
             try {
@@ -888,76 +927,181 @@ class SurveyMapApp {
                 if (response.ok) {
                     const svgText = await response.text();
                     this.loadedIcons.set(postingFile, svgText);
-                    this.createEquipmentItem(postingFile, svgText);
+                    const iconData = this.analyzeIcon(postingFile, svgText);
+                    this.allIcons.push(iconData);
+                    this.createEquipmentItem(iconData);
                     loadedFromFiles++;
 
-                    // Update debug status every 10 files
-                    if (loadedFromFiles % 10 === 0) {
-                        debugStatus.textContent = `Loaded ${loadedFromFiles} posting files...`;
-                    }
                 }
             } catch (error) {
                 continue;
             }
         }
 
-        // Final status
-        const totalLoaded = Object.keys(embeddedIcons).length + loadedFromFiles;
-        debugStatus.innerHTML = `<strong>Complete!</strong><br>Embedded: ${Object.keys(embeddedIcons).length}<br>Posting files: ${loadedFromFiles}<br>Total: ${totalLoaded}`;
-
-        if (loadedFromFiles === 0) {
-            debugStatus.innerHTML += '<br><span style="color: red;">No posting files loaded - check server</span>';
-        }
     }
 
-    createEquipmentItem(iconFile, svgText) {
+    // Analyze SVG content to categorize and extract keywords
+    analyzeIcon(iconFile, svgText) {
+        const iconName = iconFile.replace('.svg', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        let category = 'other';
+        let keywords = [iconName.toLowerCase()];
+        let displayName = iconName;
+
+        // Enhanced categorization for radiological posting signs
+        // Since SVG files don't contain readable text, we categorize by filename patterns and slide numbers
+
+        if (iconFile.startsWith('Slide')) {
+            // Extract slide number for pattern-based categorization
+            const slideNum = parseInt(iconFile.match(/\d+/)?.[0] || '0');
+
+            // Categorize based on typical radiological posting patterns
+            // These ranges are educated guesses based on common posting organization
+            if (slideNum >= 1 && slideNum <= 20) {
+                category = 'caution';
+                displayName = `Caution Posting ${slideNum}`;
+                keywords.push('caution', 'warning', 'yellow', 'alert');
+            } else if (slideNum >= 21 && slideNum <= 40) {
+                category = 'radiation';
+                displayName = `Radiation Area Posting ${slideNum}`;
+                keywords.push('radiation', 'radioactive', 'area', 'purple', 'magenta');
+            } else if (slideNum >= 41 && slideNum <= 60) {
+                category = 'contamination';
+                displayName = `Contamination Area Posting ${slideNum}`;
+                keywords.push('contamination', 'contaminated', 'area', 'orange', 'yellow');
+            } else if (slideNum >= 61 && slideNum <= 80) {
+                category = 'restricted';
+                displayName = `Restricted Area Posting ${slideNum}`;
+                keywords.push('restricted', 'authorized', 'access', 'personnel', 'red');
+            } else if (slideNum >= 81 && slideNum <= 100) {
+                category = 'danger';
+                displayName = `Danger Posting ${slideNum}`;
+                keywords.push('danger', 'hazard', 'red', 'high');
+            } else {
+                category = 'other';
+                displayName = `Radiological Posting ${slideNum}`;
+                keywords.push('posting', 'sign', 'radiological');
+            }
+
+            // Add slide-specific keywords
+            keywords.push('slide', `slide${slideNum}`, 'posting', 'sign');
+        } else {
+            // Handle embedded icons and other files
+            const fileName = iconFile.toLowerCase();
+
+            if (fileName.includes('drum') || fileName.includes('container')) {
+                category = 'equipment';
+                displayName = 'Waste Container';
+                keywords.push('equipment', 'container', 'drum', 'waste');
+            } else if (fileName.includes('contamination')) {
+                category = 'contamination';
+                displayName = 'Contamination Area';
+                keywords.push('contamination', 'area', 'orange');
+            } else if (fileName.includes('caution')) {
+                category = 'caution';
+                displayName = 'Caution Sign';
+                keywords.push('caution', 'warning', 'yellow');
+            }
+        }
+
+        // Add generic radiological keywords for all posting signs
+        keywords.push('radiological', 'nuclear', 'health', 'physics', 'safety');
+
+        // Add filename-based keywords
+        const fileWords = iconFile.replace('.svg', '').toLowerCase().split(/[-_\s]+/);
+        keywords.push(...fileWords.filter(word => word.length > 1));
+
+        return {
+            file: iconFile,
+            name: displayName,
+            svgText: svgText,
+            category: category,
+            keywords: [...new Set(keywords)], // Remove duplicates
+            visible: true
+        };
+    }
+
+    createEquipmentItem(iconData) {
         const equipmentList = document.getElementById('equipmentList');
         if (!equipmentList) return;
 
-        const iconName = iconFile.replace('.svg', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-        // Create a simple div with just text
+        // Create simple equipment card
         const equipmentItem = document.createElement('div');
-        equipmentItem.style.padding = '10px';
-        equipmentItem.style.background = 'white';
-        equipmentItem.style.border = '1px solid #ccc';
-        equipmentItem.style.marginBottom = '5px';
-        equipmentItem.style.cursor = 'pointer';
-        equipmentItem.style.fontSize = '14px';
-        equipmentItem.style.fontWeight = 'bold';
-        equipmentItem.textContent = iconName;
+        equipmentItem.className = 'equipment-card';
+        equipmentItem.dataset.category = iconData.category;
+        equipmentItem.dataset.keywords = iconData.keywords.join(' ');
 
-        // Add click handler to show the icon
-        equipmentItem.onclick = () => {
-            if (equipmentItem.expanded) {
-                // Collapse - just show name
-                equipmentItem.innerHTML = '';
-                equipmentItem.textContent = iconName;
-                equipmentItem.expanded = false;
-            } else {
-                // Expand - show name and icon
-                equipmentItem.innerHTML = `
-                    <div style="font-weight: bold; margin-bottom: 10px;">${iconName}</div>
-                    <div style="border: 2px dashed #ccc; padding: 10px; text-align: center;">
-                        <div class="icon-preview-container" style="width: 60px; height: 60px; margin: 0 auto; border: 1px solid #999; overflow: hidden; cursor: grab; display: flex; align-items: center; justify-content: center;">
-                            <div style="width: 50px; height: 50px; overflow: hidden;">${svgText.replace(/width="[^"]*"/, 'width="50"').replace(/height="[^"]*"/, 'height="50"')}</div>
-                        </div>
-                        <div style="margin-top: 5px; font-size: 12px; color: #666;">Drag to place on map</div>
-                    </div>
-                `;
+        // Create icon container
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'icon-container';
+        iconContainer.innerHTML = iconData.svgText;
 
-                // Add drag functionality to the container (not the scaled SVG)
-                const iconPreview = equipmentItem.querySelector('.icon-preview-container');
-                if (iconPreview) {
-                    iconPreview.addEventListener('mousedown', (e) => this.startIconDrag(e, iconFile, svgText));
-                    iconPreview.addEventListener('mouseenter', () => iconPreview.style.cursor = 'grab');
-                    iconPreview.addEventListener('mousedown', () => iconPreview.style.cursor = 'grabbing');
-                }
-                equipmentItem.expanded = true;
-            }
-        };
+        // Scale SVG to be bigger and more readable
+        const svg = iconContainer.querySelector('svg');
+        if (svg) {
+            svg.style.width = '80px';
+            svg.style.height = '80px';
+        }
+
+        // Create name and category info
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'icon-info';
+        infoContainer.innerHTML = `
+            <div class="icon-name">${iconData.name}</div>
+            <span class="category-badge category-${iconData.category}">${iconData.category}</span>
+        `;
+
+        equipmentItem.appendChild(iconContainer);
+        equipmentItem.appendChild(infoContainer);
+
+        // Add drag functionality to the entire card
+        equipmentItem.addEventListener('mousedown', (e) => this.startIconDrag(e, iconData.file, iconData.svgText));
+        equipmentItem.style.cursor = 'grab';
 
         equipmentList.appendChild(equipmentItem);
+    }
+
+    // Get color for category badges
+    getCategoryColor(category) {
+        const colors = {
+            'caution': '#ff9800',     // Orange
+            'danger': '#f44336',      // Red
+            'radiation': '#9c27b0',   // Purple
+            'contamination': '#e91e63', // Pink
+            'restricted': '#795548',   // Brown
+            'equipment': '#4caf50',   // Green
+            'other': '#607d8b'        // Blue Gray
+        };
+        return colors[category] || colors['other'];
+    }
+
+    // Filter icons based on search and category
+    filterIcons() {
+        const searchTerm = document.getElementById('iconSearch').value.toLowerCase();
+        const selectedCategory = document.getElementById('categoryFilter').value;
+
+        const equipmentItems = document.querySelectorAll('.equipment-card');
+        let visibleCount = 0;
+
+        equipmentItems.forEach(item => {
+            const keywords = item.dataset.keywords;
+            const category = item.dataset.category;
+
+            // Check search term match
+            const matchesSearch = !searchTerm || keywords.includes(searchTerm);
+
+            // Check category match
+            const matchesCategory = !selectedCategory || category === selectedCategory;
+
+            const shouldShow = matchesSearch && matchesCategory;
+
+            if (shouldShow) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
     }
 
     drawSvgIcon(equipment) {
