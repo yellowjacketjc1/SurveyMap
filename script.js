@@ -27,10 +27,12 @@ class SurveyMapApp {
         this.annotations = {
             smears: [],
             doseRates: [],
-            equipment: []
+            equipment: [],
+            boundaries: []
         };
         this.nextSmearId = 1;
         this.currentTool = null;
+        this.currentBoundary = null; // Current boundary being drawn
 
         // Dragging state
         this.isDraggingSmear = false;
@@ -128,6 +130,8 @@ class SurveyMapApp {
         this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.canvas.addEventListener('wheel', (e) => this.handleZoom(e));
+        this.canvas.addEventListener('contextmenu', (e) => this.handleRightClick(e));
+        this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
 
         // Responsive canvas
         window.addEventListener('resize', () => this.resetView());
@@ -137,6 +141,8 @@ class SurveyMapApp {
         const removeSmearBtn = document.getElementById('removeSmearBtn');
         const addDoseBtn = document.getElementById('addDoseBtn');
         const removeDoseBtn = document.getElementById('removeDoseBtn');
+        const addBoundaryBtn = document.getElementById('addBoundaryBtn');
+        const deleteBoundaryBtn = document.getElementById('deleteBoundaryBtn');
         const deleteEquipmentBtn = document.getElementById('deleteEquipmentBtn');
         const clearAllBtn = document.getElementById('clearAllBtn');
 
@@ -144,6 +150,8 @@ class SurveyMapApp {
         removeSmearBtn.addEventListener('click', () => this.toggleSmearTool('remove'));
         addDoseBtn.addEventListener('click', () => this.toggleDoseTool('add'));
         removeDoseBtn.addEventListener('click', () => this.toggleDoseTool('remove'));
+        addBoundaryBtn.addEventListener('click', () => this.toggleBoundaryTool());
+        deleteBoundaryBtn.addEventListener('click', () => this.toggleBoundaryDeleteTool());
         deleteEquipmentBtn.addEventListener('click', () => this.toggleEquipmentDeleteTool());
         clearAllBtn.addEventListener('click', () => this.clearAllAnnotations());
 
@@ -374,6 +382,36 @@ class SurveyMapApp {
         this.updateDoseControls();
     }
 
+    toggleBoundaryTool() {
+        // Toggle the boundary tool - if it's already active, deactivate it
+        if (this.currentTool && this.currentTool.type === 'boundary') {
+            this.currentTool = null;
+            this.finishCurrentBoundary();
+        } else {
+            this.currentTool = { type: 'boundary' };
+        }
+
+        this.updateButtonStates();
+        this.updateCursor();
+    }
+
+    toggleBoundaryDeleteTool() {
+        // Finish any current boundary being drawn before switching to delete mode
+        if (this.currentBoundary) {
+            this.finishCurrentBoundary();
+        }
+
+        // Toggle the boundary delete tool - if it's already active, deactivate it
+        if (this.currentTool && this.currentTool.type === 'boundary' && this.currentTool.action === 'delete') {
+            this.currentTool = null;
+        } else {
+            this.currentTool = { type: 'boundary', action: 'delete' };
+        }
+
+        this.updateButtonStates();
+        this.updateCursor();
+    }
+
     updateButtonStates() {
         // Smear buttons
         const addSmearBtn = document.getElementById('addSmearBtn');
@@ -383,6 +421,10 @@ class SurveyMapApp {
         const addDoseBtn = document.getElementById('addDoseBtn');
         const removeDoseBtn = document.getElementById('removeDoseBtn');
 
+        // Boundary buttons
+        const addBoundaryBtn = document.getElementById('addBoundaryBtn');
+        const deleteBoundaryBtn = document.getElementById('deleteBoundaryBtn');
+
         // Equipment button
         const deleteEquipmentBtn = document.getElementById('deleteEquipmentBtn');
 
@@ -391,6 +433,8 @@ class SurveyMapApp {
         removeSmearBtn.classList.remove('active');
         addDoseBtn.classList.remove('active');
         removeDoseBtn.classList.remove('active');
+        addBoundaryBtn.classList.remove('active');
+        deleteBoundaryBtn.classList.remove('active');
         deleteEquipmentBtn.classList.remove('active');
 
         // Set active state for current tool
@@ -406,6 +450,12 @@ class SurveyMapApp {
                     addDoseBtn.classList.add('active');
                 } else if (this.currentTool.action === 'remove') {
                     removeDoseBtn.classList.add('active');
+                }
+            } else if (this.currentTool.type === 'boundary') {
+                if (this.currentTool.action === 'delete') {
+                    deleteBoundaryBtn.classList.add('active');
+                } else {
+                    addBoundaryBtn.classList.add('active');
                 }
             } else if (this.currentTool.type === 'equipment') {
                 if (this.currentTool.action === 'delete') {
@@ -443,7 +493,19 @@ class SurveyMapApp {
     }
 
     handleMouseDown(e) {
-        if (this.currentTool && this.currentTool.action === 'add') {
+        if (this.currentTool && this.currentTool.type === 'boundary' && this.currentTool.action === 'delete') {
+            // Handle boundary deletion
+            this.deleteBoundary(e);
+        } else if (this.currentTool && this.currentTool.type === 'boundary') {
+            // Handle boundary drawing
+            const rect = this.canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+            const pageX = (canvasX - this.offsetX) / this.scale;
+            const pageY = (canvasY - this.offsetY) / this.scale;
+
+            this.addBoundaryPoint(pageX, pageY);
+        } else if (this.currentTool && this.currentTool.action === 'add') {
             this.addAnnotation(e);
         } else if (this.currentTool && this.currentTool.action === 'remove' && this.currentTool.type === 'smear') {
             this.removeSmear(e);
@@ -517,6 +579,20 @@ class SurveyMapApp {
             this.endSelectedIconDrag();
         } else {
             this.endPan();
+        }
+    }
+
+    handleRightClick(e) {
+        e.preventDefault(); // Prevent context menu from appearing
+
+        if (this.currentTool && this.currentTool.type === 'boundary') {
+            this.removeLastBoundaryPoint();
+        }
+    }
+
+    handleDoubleClick() {
+        if (this.currentTool && this.currentTool.type === 'boundary') {
+            this.finishCurrentBoundary();
         }
     }
 
@@ -645,6 +721,54 @@ class SurveyMapApp {
                 this.ctx.fillText(equipment.type.charAt(0).toUpperCase(), equipment.x, equipment.y + 3);
             }
         });
+
+        // Draw boundaries (completed ones)
+        this.annotations.boundaries.forEach(boundary => {
+            if (boundary.points.length > 1) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(boundary.points[0].x, boundary.points[0].y);
+
+                for (let i = 1; i < boundary.points.length; i++) {
+                    this.ctx.lineTo(boundary.points[i].x, boundary.points[i].y);
+                }
+
+                this.ctx.strokeStyle = '#6f42c1';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([8, 4]); // Dashed line pattern
+                this.ctx.stroke();
+                this.ctx.setLineDash([]); // Reset to solid lines for other drawings
+            }
+        });
+
+        // Draw current boundary being created
+        if (this.currentBoundary && this.currentBoundary.points.length > 0) {
+            // Draw completed segments
+            if (this.currentBoundary.points.length > 1) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.currentBoundary.points[0].x, this.currentBoundary.points[0].y);
+
+                for (let i = 1; i < this.currentBoundary.points.length; i++) {
+                    this.ctx.lineTo(this.currentBoundary.points[i].x, this.currentBoundary.points[i].y);
+                }
+
+                this.ctx.strokeStyle = '#8a63d2';  // Lighter purple for current boundary
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([8, 4]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+
+            // Draw points as small circles
+            this.currentBoundary.points.forEach(point => {
+                this.ctx.beginPath();
+                this.ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+                this.ctx.fillStyle = '#6f42c1';
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 1;
+                this.ctx.stroke();
+            });
+        }
 
         this.ctx.restore();
     }
@@ -800,9 +924,124 @@ class SurveyMapApp {
         this.annotations.smears = [];
         this.annotations.doseRates = [];
         this.annotations.equipment = [];
+        this.annotations.boundaries = [];
+        this.currentBoundary = null;
         this.nextSmearId = 1;
         document.getElementById('nextSmearId').textContent = this.nextSmearId;
         this.redraw();
+    }
+
+    // Boundary Methods
+    finishCurrentBoundary() {
+        if (this.currentBoundary && this.currentBoundary.points.length > 1) {
+            // Add the current boundary to the annotations
+            this.annotations.boundaries.push({
+                points: [...this.currentBoundary.points],
+                id: Date.now()
+            });
+            this.redraw();
+        }
+        this.currentBoundary = null;
+    }
+
+    addBoundaryPoint(x, y) {
+        if (!this.currentBoundary) {
+            this.currentBoundary = {
+                points: [],
+                id: Date.now()
+            };
+        }
+
+        this.currentBoundary.points.push({ x, y });
+        this.redraw();
+    }
+
+    removeLastBoundaryPoint() {
+        if (this.currentBoundary && this.currentBoundary.points.length > 0) {
+            this.currentBoundary.points.pop();
+            this.redraw();
+
+            // If no points left, clear current boundary
+            if (this.currentBoundary.points.length === 0) {
+                this.currentBoundary = null;
+            }
+        }
+    }
+
+    deleteBoundary(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+        const pageX = (canvasX - this.offsetX) / this.scale;
+        const pageY = (canvasY - this.offsetY) / this.scale;
+
+        // Find which boundary was clicked
+        const boundaryToDelete = this.getBoundaryAtPosition(pageX, pageY);
+
+        if (boundaryToDelete !== null) {
+            // Remove the boundary from the annotations
+            this.annotations.boundaries.splice(boundaryToDelete, 1);
+            this.redraw();
+        }
+    }
+
+    getBoundaryAtPosition(x, y) {
+        const clickThreshold = 15; // pixels in page coordinates
+
+        // Check boundaries in reverse order (most recent first) for better user experience
+        for (let boundaryIndex = this.annotations.boundaries.length - 1; boundaryIndex >= 0; boundaryIndex--) {
+            const boundary = this.annotations.boundaries[boundaryIndex];
+
+            if (boundary.points.length < 2) continue;
+
+            // Check each line segment in the boundary
+            for (let i = 0; i < boundary.points.length - 1; i++) {
+                const point1 = boundary.points[i];
+                const point2 = boundary.points[i + 1];
+
+                // Calculate distance from point to line segment
+                const distance = this.distanceToLineSegment(x, y, point1.x, point1.y, point2.x, point2.y);
+
+                if (distance <= clickThreshold) {
+                    return boundaryIndex;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // Calculate the shortest distance from a point to a line segment
+    distanceToLineSegment(px, py, x1, y1, x2, y2) {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+
+        if (lenSq === 0) {
+            // Line segment is actually a point
+            return Math.sqrt(A * A + B * B);
+        }
+
+        let param = dot / lenSq;
+
+        // Clamp to line segment
+        if (param < 0) {
+            param = 0;
+        } else if (param > 1) {
+            param = 1;
+        }
+
+        const xx = x1 + param * C;
+        const yy = y1 + param * D;
+
+        const dx = px - xx;
+        const dy = py - yy;
+
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     // Icon Management Methods
