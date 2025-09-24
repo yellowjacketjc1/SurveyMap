@@ -85,12 +85,30 @@
                     <div class="editing-section">
                         <h4>Dose Rates</h4>
                         <div class="tool-controls">
-                            <select id="doseAction" class="tool-select">
-                                <option value="">Select Action</option>
-                                <option value="add">Add Dose Rate</option>
-                                <option value="remove">Remove Dose Rate</option>
-                            </select>
-                            <input type="number" id="doseValue" placeholder="μR/hr" class="dose-input" style="display: none;">
+                            <div class="button-group">
+                                <button id="addDoseBtn" class="tool-btn add-btn">Add Dose Rate</button>
+                                <button id="removeDoseBtn" class="tool-btn remove-btn">Remove Dose Rate</button>
+                            </div>
+                            <div id="doseControls" class="dose-controls" style="display: none;">
+                                <div class="dose-input-row">
+                                    <input type="number" id="doseValue" placeholder="100" class="dose-input" step="0.1" min="0">
+                                    <select id="doseUnit" class="dose-unit-select">
+                                        <option value="uR/hr">μR/hr</option>
+                                        <option value="mR/hr">mR/hr</option>
+                                        <option value="R/hr">R/hr</option>
+                                    </select>
+                                </div>
+                                <div class="dose-type-toggle">
+                                    <label class="toggle-label">
+                                        <input type="radio" name="doseType" value="gamma" checked>
+                                        <span class="toggle-option">Gamma</span>
+                                    </label>
+                                    <label class="toggle-label">
+                                        <input type="radio" name="doseType" value="neutron">
+                                        <span class="toggle-option">Neutron</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

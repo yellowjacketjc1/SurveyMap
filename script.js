@@ -118,17 +118,15 @@ class SurveyMapApp {
         // Editing tools
         const addSmearBtn = document.getElementById('addSmearBtn');
         const removeSmearBtn = document.getElementById('removeSmearBtn');
-        const doseAction = document.getElementById('doseAction');
-        const doseValue = document.getElementById('doseValue');
+        const addDoseBtn = document.getElementById('addDoseBtn');
+        const removeDoseBtn = document.getElementById('removeDoseBtn');
         const equipmentAction = document.getElementById('equipmentAction');
         const clearAllBtn = document.getElementById('clearAllBtn');
 
         addSmearBtn.addEventListener('click', () => this.toggleSmearTool('add'));
         removeSmearBtn.addEventListener('click', () => this.toggleSmearTool('remove'));
-        doseAction.addEventListener('change', (e) => {
-            this.setTool('dose', e.target.value);
-            doseValue.style.display = e.target.value === 'add' ? 'block' : 'none';
-        });
+        addDoseBtn.addEventListener('click', () => this.toggleDoseTool('add'));
+        removeDoseBtn.addEventListener('click', () => this.toggleDoseTool('remove'));
         equipmentAction.addEventListener('change', (e) => this.setTool('equipment', e.target.value));
         clearAllBtn.addEventListener('click', () => this.clearAllAnnotations());
     }
@@ -295,22 +293,58 @@ class SurveyMapApp {
         this.updateCursor();
     }
 
+    toggleDoseTool(action) {
+        // Toggle the tool - if it's already active, deactivate it
+        if (this.currentTool && this.currentTool.type === 'dose' && this.currentTool.action === action) {
+            this.currentTool = null;
+        } else {
+            this.currentTool = { type: 'dose', action };
+        }
+
+        this.updateButtonStates();
+        this.updateCursor();
+        this.updateDoseControls();
+    }
+
     updateButtonStates() {
-        const addBtn = document.getElementById('addSmearBtn');
-        const removeBtn = document.getElementById('removeSmearBtn');
+        // Smear buttons
+        const addSmearBtn = document.getElementById('addSmearBtn');
+        const removeSmearBtn = document.getElementById('removeSmearBtn');
+
+        // Dose buttons
+        const addDoseBtn = document.getElementById('addDoseBtn');
+        const removeDoseBtn = document.getElementById('removeDoseBtn');
 
         // Reset all button states
-        addBtn.classList.remove('active');
-        removeBtn.classList.remove('active');
+        addSmearBtn.classList.remove('active');
+        removeSmearBtn.classList.remove('active');
+        addDoseBtn.classList.remove('active');
+        removeDoseBtn.classList.remove('active');
 
         // Set active state for current tool
-        if (this.currentTool && this.currentTool.type === 'smear') {
-            if (this.currentTool.action === 'add') {
-                addBtn.classList.add('active');
-            } else if (this.currentTool.action === 'remove') {
-                removeBtn.classList.add('active');
+        if (this.currentTool) {
+            if (this.currentTool.type === 'smear') {
+                if (this.currentTool.action === 'add') {
+                    addSmearBtn.classList.add('active');
+                } else if (this.currentTool.action === 'remove') {
+                    removeSmearBtn.classList.add('active');
+                }
+            } else if (this.currentTool.type === 'dose') {
+                if (this.currentTool.action === 'add') {
+                    addDoseBtn.classList.add('active');
+                } else if (this.currentTool.action === 'remove') {
+                    removeDoseBtn.classList.add('active');
+                }
             }
         }
+    }
+
+    updateDoseControls() {
+        const doseControls = document.getElementById('doseControls');
+        const showControls = this.currentTool &&
+                           this.currentTool.type === 'dose' &&
+                           this.currentTool.action === 'add';
+        doseControls.style.display = showControls ? 'block' : 'none';
     }
 
     updateCursor() {
@@ -337,6 +371,8 @@ class SurveyMapApp {
             this.addAnnotation(e);
         } else if (this.currentTool && this.currentTool.action === 'remove' && this.currentTool.type === 'smear') {
             this.removeSmear(e);
+        } else if (this.currentTool && this.currentTool.action === 'remove' && this.currentTool.type === 'dose') {
+            this.removeDoseRate(e);
         } else {
             // Check if clicking on a smear for dragging (when no tool is active)
             if (!this.currentTool) {
@@ -392,11 +428,16 @@ class SurveyMapApp {
             document.getElementById('nextSmearId').textContent = this.nextSmearId;
         } else if (this.currentTool.type === 'dose') {
             const doseValue = document.getElementById('doseValue').value;
+            const doseUnit = document.getElementById('doseUnit').value;
+            const doseType = document.querySelector('input[name="doseType"]:checked').value;
+
             if (doseValue) {
                 this.annotations.doseRates.push({
                     x: pageX,
                     y: pageY,
-                    value: parseFloat(doseValue)
+                    value: parseFloat(doseValue),
+                    unit: doseUnit,
+                    type: doseType
                 });
             }
         } else if (this.currentTool.type === 'equipment') {
@@ -444,18 +485,34 @@ class SurveyMapApp {
             this.ctx.fillText(smear.id.toString(), smear.x, smear.y + 4);
         });
 
-        // Draw dose rates
+        // Draw dose rates (text only)
         this.annotations.doseRates.forEach(dose => {
-            this.ctx.beginPath();
-            this.ctx.arc(dose.x, dose.y, 8, 0, 2 * Math.PI);
-            this.ctx.fillStyle = 'rgba(220, 53, 69, 0.8)';
-            this.ctx.fill();
+            const displayValue = `${dose.value} ${dose.unit || 'μR/hr'}`;
 
-            // Draw dose value
+            // Set text properties
             this.ctx.fillStyle = '#000';
-            this.ctx.font = 'bold 10px Arial';
+            this.ctx.font = 'bold 12px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(`${dose.value}μR/hr`, dose.x, dose.y - 15);
+            this.ctx.textBaseline = 'middle';
+
+            // Draw neutron indicator dot to the left of text
+            if (dose.type === 'neutron') {
+                // Measure text width to position dot correctly
+                const textMetrics = this.ctx.measureText(displayValue);
+                const textWidth = textMetrics.width;
+                const dotX = dose.x - (textWidth / 2) - 8; // 8px to the left of text start
+
+                this.ctx.beginPath();
+                this.ctx.arc(dotX, dose.y, 3, 0, 2 * Math.PI);
+                this.ctx.fillStyle = '#007bff';
+                this.ctx.fill();
+
+                // Reset text color for the dose value
+                this.ctx.fillStyle = '#000';
+            }
+
+            // Draw dose value with unit
+            this.ctx.fillText(displayValue, dose.x, dose.y);
         });
 
         // Draw equipment
@@ -507,6 +564,35 @@ class SurveyMapApp {
             // Renumber all remaining smears
             this.renumberSmears();
 
+            this.redraw();
+        }
+    }
+
+    removeDoseRate(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Convert canvas coordinates to page coordinates
+        const pageX = (canvasX - this.offsetX) / this.scale;
+        const pageY = (canvasY - this.offsetY) / this.scale;
+
+        // Find the closest dose rate within clicking distance
+        let closestDose = null;
+        let closestDistance = Infinity;
+        const clickThreshold = 30; // slightly larger threshold for text-based elements
+
+        this.annotations.doseRates.forEach((dose, index) => {
+            const distance = Math.sqrt(Math.pow(dose.x - pageX, 2) + Math.pow(dose.y - pageY, 2));
+            if (distance < clickThreshold && distance < closestDistance) {
+                closestDistance = distance;
+                closestDose = { dose, index };
+            }
+        });
+
+        if (closestDose) {
+            // Remove the dose rate
+            this.annotations.doseRates.splice(closestDose.index, 1);
             this.redraw();
         }
     }

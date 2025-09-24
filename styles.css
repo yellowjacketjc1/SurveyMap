@@ -287,7 +287,7 @@ main {
     gap: 10px;
 }
 
-.tool-select, .dose-input {
+.tool-select, .dose-input, .dose-unit-select {
     padding: 8px 12px;
     border: 1px solid #ced4da;
     border-radius: 6px;
@@ -296,10 +296,85 @@ main {
     color: #495057;
 }
 
-.tool-select:focus, .dose-input:focus {
+.tool-select:focus, .dose-input:focus, .dose-unit-select:focus {
     outline: none;
     border-color: #3498db;
     box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.dose-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 12px;
+    background: #f1f3f4;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.dose-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.dose-input {
+    flex: 2;
+    min-width: 0;
+}
+
+.dose-unit-select {
+    flex: 1;
+    min-width: 80px;
+}
+
+.dose-type-toggle {
+    display: flex;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.toggle-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.toggle-label input[type="radio"] {
+    display: none;
+}
+
+.toggle-option {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #6c757d;
+    background: transparent;
+    transition: all 0.3s ease;
+    width: 100%;
+    text-align: center;
+}
+
+.toggle-label input[type="radio"]:checked + .toggle-option {
+    color: white;
+    background: #007bff;
+}
+
+.toggle-label:first-child .toggle-option {
+    border-right: 1px solid #ced4da;
+}
+
+.toggle-label:hover .toggle-option {
+    background: #f8f9fa;
+}
+
+.toggle-label input[type="radio"]:checked + .toggle-option:hover {
+    background: #0056b3;
 }
 
 .smear-info {
