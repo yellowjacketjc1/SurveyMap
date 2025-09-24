@@ -491,6 +491,164 @@ input[type="range"]::-moz-range-thumb {
     border: none;
 }
 
+/* Equipment Gallery Styles */
+.equipment-gallery {
+    width: 100%;
+}
+
+.equipment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 8px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+}
+
+.equipment-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 4px;
+}
+
+.equipment-item:hover {
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+}
+
+.equipment-item.expanded {
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+}
+
+.equipment-header {
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    transition: background-color 0.3s ease;
+    min-height: 40px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.equipment-header:hover {
+    background: #e9ecef;
+}
+
+.equipment-name {
+    font-weight: 700;
+    color: #2c3e50;
+    flex: 1;
+    font-size: 1em;
+    line-height: 1.2;
+}
+
+.expand-icon {
+    color: #6c757d;
+    font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+.equipment-item.expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+.equipment-preview {
+    padding: 15px;
+    background: white;
+    border-top: 1px solid #dee2e6;
+    display: none;
+    text-align: center;
+}
+
+.equipment-item.expanded .equipment-preview {
+    display: block;
+}
+
+.icon-preview {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 12px;
+    border: 2px dashed #ced4da;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.icon-preview:hover {
+    border-color: #3498db;
+    background: #e3f2fd;
+    transform: scale(1.05);
+}
+
+.icon-preview:active {
+    cursor: grabbing;
+}
+
+.icon-preview svg {
+    width: 36px;
+    height: 36px;
+    opacity: 0.8;
+}
+
+.drag-instruction {
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 8px;
+}
+
+/* Drag preview styles */
+.drag-preview {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.8;
+    transform: rotate(-5deg);
+    transition: none;
+}
+
+.drag-preview svg {
+    width: 48px;
+    height: 48px;
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+}
+
+/* Canvas drop zone highlight */
+#mapCanvas.drag-over {
+    box-shadow: inset 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+/* Custom scrollbar for equipment list */
+.equipment-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.equipment-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.equipment-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.equipment-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 10px;

@@ -115,13 +115,14 @@
                     <div class="editing-section">
                         <h4>Equipment Library</h4>
                         <div class="tool-controls">
-                            <select id="equipmentAction" class="tool-select">
-                                <option value="">Select Equipment</option>
-                                <option value="detector">Detector</option>
-                                <option value="source">Source</option>
-                                <option value="barrier">Barrier</option>
-                                <option value="instrument">Instrument</option>
-                            </select>
+                            <div class="button-group">
+                                <button id="deleteEquipmentBtn" class="tool-btn remove-btn">Delete Equipment</button>
+                            </div>
+                            <div class="equipment-gallery">
+                                <div id="equipmentList" class="equipment-list">
+                                    <!-- Icons will be loaded dynamically -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
